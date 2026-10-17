@@ -25,6 +25,25 @@ def allocation(rows):
     return {winner: qualifiers[third] for winner, third in zip(RULES['columns'], RULES['allocations'][groups])}
 
 
+def projection(st, tables, comparisons):
+    stage_id = st['groupStageId']
+    rows = comparisons[stage_id, st['comparatorId']]['rows']
+    if len(rows) != 12 or any(len(tables[stage_id, g]['rows']) != 4 for g in range(12)):
+        return None
+    thirds = allocation(rows)
+    def source(src):
+        if src['kind'] == 'worldcupThird':
+            return thirds[src['winnerGroup']]
+        return tables[stage_id, src['group']]['rows'][src['rank']-1]['teamId']
+    def seed(src):
+        group = src['group'] if src['kind'] == 'rank' else next(r['group'] for r in rows[:8] if r['teamId'] == source(src))
+        return f"{chr(65+group)}{src.get('rank', 3)}"
+    return dict(stageId=st['id'], matches=[
+        dict(key=f"{st['id']}:r1:{i//2}", team_a=source(st['slots'][i]), team_b=source(st['slots'][i+1]),
+             seed_a=seed(st['slots'][i]), seed_b=seed(st['slots'][i+1]))
+        for i in range(0, 32, 2)])
+
+
 def validate_stage(st, previous):
     source = previous.get(st.get('groupStageId'))
     c = next((c for c in source.get('comparators', []) if c['id'] == st.get('comparatorId')), None) if source else None

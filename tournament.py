@@ -291,7 +291,9 @@ def state(con, matches, cfg):
     draft_pairs,draft_tables,draft_comparisons=resolve(draft,preview_matches,cfg,names,preview=True)
     qualify(draft,preview_matches,cfg,names,draft_pairs,draft_tables,draft_comparisons)
     serialize=lambda values:[dict(stageId=s,comparatorId=c,**value) for (s,c),value in values.items()]
-    return dict(draft=draft,active=active,tables=[dict(stageId=s,group=g,**value) for (s,g),value in tables.items()],comparisons=serialize(comparisons),draftComparisons=serialize(draft_comparisons))
+    projections=[p for st in active['stages'] if st.get('bracket')=='worldcup2026'
+                 if (p:=worldcup.projection(st,tables,comparisons)) is not None]
+    return dict(draft=draft,active=active,tables=[dict(stageId=s,group=g,**value) for (s,g),value in tables.items()],comparisons=serialize(comparisons),draftComparisons=serialize(draft_comparisons),projections=projections)
 
 
 def qualify(plan, matches, cfg, names, pairs, tables, comparisons):

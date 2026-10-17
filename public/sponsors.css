@@ -3,6 +3,11 @@
 .sponsor-card{flex:0 1 240px;min-width:0;margin:0}
 .sponsor-image{aspect-ratio:3/2;overflow:hidden;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
 .sponsor-image img{display:block;width:100%;height:100%}
+.sponsor-card .sponsor-image{background:#f4f5f2}
+.sponsor-card .sponsor-image img{padding:10px}
+.hero-sponsors{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.hero-sponsors .sponsor-image{width:88px;flex:none;aspect-ratio:2/1;border:0;background:transparent;border-radius:0}
+.hero-sponsors .sponsor-image img{padding:5px}
 .sponsor-card figcaption{margin-top:12px;text-align:center;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
 .sponsor-admin-identity{display:flex;align-items:center;gap:18px;min-width:0}
 .sponsor-admin-identity .sponsor-image{width:108px;flex:none}

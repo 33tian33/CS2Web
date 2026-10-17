@@ -1,4 +1,6 @@
 .knockout{border:1px solid #35413c;border-radius:12px;overflow:hidden;background:#111719}
+.knockout-projection-note{margin:0;padding:10px 20px;border-bottom:1px solid #35413c;color:#c2cea9;font-size:12px;line-height:1.6}
+.knockout-seed{flex-shrink:0;color:#aab7b0;font:10px ui-monospace,monospace}
 .knockout-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:linear-gradient(105deg,#202b22,#171e20)}
 .knockout-summary{display:flex;align-items:baseline;gap:12px}.knockout-summary strong{font-size:22px;letter-spacing:-.5px}.knockout-summary>span{color:#aab7b0;font-size:12px}
 .knockout-navigation{display:flex;align-items:center;gap:12px;font-size:12px}.knockout-navigation>span{color:var(--accent)}

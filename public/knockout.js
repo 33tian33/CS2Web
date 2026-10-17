@@ -37,16 +37,18 @@ function knockoutSource(src,plan,matches){
   }
   return sourceName(src,plan);
 }
-function knockoutCard(n,plan,matches,publicView){
+function knockoutCard(n,plan,matches,publicView,projections){
   const m=matches.get(n.d.key),scores=m?score(m):null;
+  const projected=projections.get(n.d.key),provisional=!!projected&&(!m?.team_a||!m?.team_b)&&(!m||m.status==='scheduled');
   const title=n.kind==='final'?'决赛':n.kind==='bronze'?'季军战':n.d.round;
-  const tag=m?(publicView?'a':'button'):'article';
-  const action=m?(publicView?`href="#/match/${m.id}"`:`type="button" onclick="editMatch(${m.id})"`):'';
-  const status=m?statusLabel(m.status):'待启用';
+  const tag=m&&!provisional?(publicView?'a':'button'):'article';
+  const action=m&&!provisional?(publicView?`href="#/match/${m.id}"`:`type="button" onclick="editMatch(${m.id})"`):'';
+  const status=provisional?'暂定对阵':m?statusLabel(m.status):'待启用';
   return `<${tag} ${action} class="knockout-card knockout-${n.kind} ${m?.status==='live'?'is-live':''}" style="left:${n.x}px;top:${n.y}px;width:${n.width}px" aria-label="${esc(`${title}${m?' #'+m.id:''} · BO${m?.bo||n.d.bo} · ${status}`)}"><div class="knockout-card-head"><span>${n.kind==='match'?(m?'#'+m.id:title):title+(m?' · #'+m.id:'')}</span><span>BO${m?.bo||n.d.bo}</span></div>${['a','b'].map((side,i)=>{
-    const src=n.d[side],t=team(m?.['team_'+side]??(src.kind==='team'?src.teamId:null));
+    const src=n.d[side],t=team(m?.['team_'+side]??(provisional?projected['team_'+side]:src.kind==='team'?src.teamId:null));
     const label=t?t.name:knockoutSource(src,plan,matches),won=m?.status==='finished'&&scores[i]>scores[1-i];
-    return `<div class="knockout-team ${won?'is-winner':''}" title="${esc(label)}"><span class="knockout-identity">${t?teamIdentity(t):`<span class="knockout-pending">${esc(label)}</span>`}</span><b>${m&&m.status!=='scheduled'?scores[i]:'—'}</b></div>`;
+    const seed=provisional?projected['seed_'+side]:'';
+    return `<div class="knockout-team ${won?'is-winner':''}" title="${esc(label)}"><span class="knockout-identity">${t?teamIdentity(t):`<span class="knockout-pending">${esc(label)}</span>`}</span>${seed?`<small class="knockout-seed">${esc(seed)}</small>`:''}<b>${m&&m.status!=='scheduled'?scores[i]:'—'}</b></div>`;
   }).join('')}<div class="knockout-card-foot"><span>${esc(status)}</span><span>${m?.time?esc(date(m.time)):'时间待定'}</span></div></${tag}>`;
 }
 function knockoutProgress(layout,matches){
@@ -65,13 +67,15 @@ function knockoutProgress(layout,matches){
 }
 function knockoutGraph(st,plan,publicView){
   const layout=knockoutLayout(st,plan),matches=new Map(state.matches.filter(m=>m.flow_key).map(m=>[m.flow_key,m]));
+  const projections=new Map((publicView?state.flow.projections?.find(p=>p.stageId===st.id)?.matches||[]:[]).map(m=>[m.key,m]));
+  const provisional=[...projections.keys()].some(key=>{const m=matches.get(key);return (!m?.team_a||!m?.team_b)&&(!m||m.status==='scheduled')});
   const focus=knockoutProgress(layout,matches),bronze=knockoutBronze(st,plan),count=st.teamCount-1+(bronze?1:0);
   const paths=layout.nodes.flatMap(n=>[n.d.a,n.d.b].map(src=>{
     const p=layout.positions.get(src.matchKey);if(!p)return '';
     const loss=src.kind==='loser',start=p.y+(loss?80:49),end=n.y+49,bend=n.x-(loss?10:20);
     return `<path class="${loss?'knockout-loss-path':'knockout-win-path'}" d="M${p.x+p.width} ${start} H${bend} V${end} H${n.x}"/>`;
   })).join('');
-  return `<div class="knockout" data-knockout="${st.id}" data-progress="${focus.signature}" data-focus-fraction="${focus.fraction}" data-focus-end="${focus.endX}" data-focus-y="${focus.y}"><div class="knockout-toolbar"><div class="knockout-summary"><strong>${st.teamCount} 强</strong><span>${count} 场${bronze?' · 含季军战':''}</span></div><div class="knockout-navigation"><span>${esc(focus.round)}</span><button type="button" onclick="centerKnockout(this.closest('[data-knockout]'),true)">回到当前赛程</button></div></div><div class="knockout-viewport" tabindex="0" role="region" aria-label="${esc(st.name)}对阵图，可拖动查看" onscroll="rememberKnockoutPosition(this)"><div class="knockout-surface" style="width:${layout.width}px"><div class="knockout-board"><div class="knockout-rounds" style="grid-template-columns:repeat(${layout.rounds.length},${layout.step}px)">${layout.rounds.map((round,i)=>`<div class="${round===focus.round?'is-current':''}"><span>${String(i+1).padStart(2,'0')}</span>${round==='决赛'&&bronze?'决赛 / 季军战':esc(round)}</div>`).join('')}</div><div class="knockout-canvas" style="height:${layout.height}px"><svg preserveAspectRatio="none" viewBox="0 0 ${layout.width} ${layout.height}" aria-hidden="true">${paths}</svg>${layout.nodes.map(n=>knockoutCard(n,plan,matches,publicView)).join('')}</div></div></div></div></div>`;
+  return `<div class="knockout" data-knockout="${st.id}" data-progress="${focus.signature}" data-focus-fraction="${focus.fraction}" data-focus-end="${focus.endX}" data-focus-y="${focus.y}"><div class="knockout-toolbar"><div class="knockout-summary"><strong>${st.teamCount} 强</strong><span>${count} 场${bronze?' · 含季军战':''}</span></div><div class="knockout-navigation"><span>${esc(focus.round)}</span><button type="button" onclick="centerKnockout(this.closest('[data-knockout]'),true)">回到当前赛程</button></div></div>${provisional?'<p class="knockout-projection-note">按当前积分暂定 · 同分沿用积分表顺序 · 小组赛结束后确定</p>':''}<div class="knockout-viewport" tabindex="0" role="region" aria-label="${esc(st.name)}对阵图，可拖动查看" onscroll="rememberKnockoutPosition(this)"><div class="knockout-surface" style="width:${layout.width}px"><div class="knockout-board"><div class="knockout-rounds" style="grid-template-columns:repeat(${layout.rounds.length},${layout.step}px)">${layout.rounds.map((round,i)=>`<div class="${round===focus.round?'is-current':''}"><span>${String(i+1).padStart(2,'0')}</span>${round==='决赛'&&bronze?'决赛 / 季军战':esc(round)}</div>`).join('')}</div><div class="knockout-canvas" style="height:${layout.height}px"><svg preserveAspectRatio="none" viewBox="0 0 ${layout.width} ${layout.height}" aria-hidden="true">${paths}</svg>${layout.nodes.map(n=>knockoutCard(n,plan,matches,publicView,projections)).join('')}</div></div></div></div></div>`;
 }
 function centerKnockout(root,smooth=false){
   const el=root.querySelector('.knockout-viewport');

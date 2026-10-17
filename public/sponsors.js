@@ -1,12 +1,17 @@
 let draftSponsor;
 
-function sponsorImage(sponsor) {
-  return `<div class="sponsor-image"><img src="${esc(sponsor.image)}" alt="${esc(sponsor.name)}" style="object-fit:${sponsor.fit}" loading="lazy" width="600" height="400"></div>`;
+function sponsorImage(sponsor, fit = sponsor.fit) {
+  return `<div class="sponsor-image"><img src="${esc(sponsor.image)}" alt="${esc(sponsor.name)}" style="object-fit:${fit}" loading="lazy" width="600" height="400"></div>`;
+}
+
+function sponsorHero() {
+  if (!state.sponsors.length) return '';
+  return `<div class="hero-sponsors" role="group" aria-label="赛事赞助商">${state.sponsors.map(s=>sponsorImage(s,'contain')).join('')}</div>`;
 }
 
 function sponsorFooter() {
   if (!state.config.name || !state.sponsors.length) return '';
-  return `<footer class="sponsor-footer" aria-labelledby="sponsor-heading"><div class="section-heading"><h2 id="sponsor-heading">赛事赞助商 <small>SPONSORS</small></h2></div><div class="sponsor-grid">${state.sponsors.map(s=>`<figure class="sponsor-card">${sponsorImage(s)}<figcaption>${esc(s.name)}</figcaption></figure>`).join('')}</div></footer>`;
+  return `<footer class="sponsor-footer" aria-labelledby="sponsor-heading"><div class="section-heading"><h2 id="sponsor-heading">赛事赞助商 <small>SPONSORS</small></h2></div><div class="sponsor-grid">${state.sponsors.map(s=>`<figure class="sponsor-card">${sponsorImage(s,'contain')}<figcaption>${esc(s.name)}</figcaption></figure>`).join('')}</div></footer>`;
 }
 
 function adminSponsors() {
