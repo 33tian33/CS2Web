@@ -1,6 +1,8 @@
 data/*.sqlite*
+!data/tournament.sqlite3
 __pycache__/
 .DS_Store
+._*
 data/backups/
 .env
 .env.*
@@ -11,4 +13,3 @@ node_modules/
 *.tar.gz
 /*.xlsx
 data/imports/
-data/media/
