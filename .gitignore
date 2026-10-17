@@ -1,0 +1,14 @@
+data/*.sqlite*
+__pycache__/
+.DS_Store
+data/backups/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+node_modules/
+*.tar.gz
+/*.xlsx
+data/imports/
+data/media/

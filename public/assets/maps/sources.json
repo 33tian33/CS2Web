@@ -1,0 +1,62 @@
+[
+  {
+    "map": "dust2",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_dust2_1_png.png",
+    "sha256": "21b370251067263a3089704000f7bba1744c5a5afef0a261cf1eec2be325dff2",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "mirage",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_mirage_1_png.png",
+    "sha256": "0bdf09e04135e22631192b0a31b88bdd2afbadf11d50745d19c0a1e31ae07fd4",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "inferno",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_inferno_1_png.png",
+    "sha256": "d481b9caa0f4604178f86f629b6c3dbbb46b7a5952c43b3ac9c9953a1aba0931",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "nuke",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_nuke_1_png.png",
+    "sha256": "6c56e85aeb3ad2107ab692e3a7402a8545b88eff80d319dfa0bf89493f007236",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "ancient",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_ancient_1_png.png",
+    "sha256": "574e464d5385795dbefa17e7d4003ac302029e80b06e537899d51c26c859bf1c",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "anubis",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_anubis_1_png.png",
+    "sha256": "cb8d4ded519953859bc20e724f455fc3860d7c3cbfcb4fe8d5093be1adcc9625",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "overpass",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_overpass_1_png.png",
+    "sha256": "6ec96b62ccf0fa9051f7e4adc8cacf489fe5670564b0b428b485918f9fb99653",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "train",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_train_1_png.png",
+    "sha256": "c97dfa4a41306d7654ce9be93a1829f18901d419c071f005c7969f2e98207fcb",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "vertigo",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_vertigo_1_png.png",
+    "sha256": "f63d0fdfef7825449f1f5ed3688a37d7845edc63c020a949834157447f119273",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  },
+  {
+    "map": "cache",
+    "source": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/thumbs/de_cache_1_png.png",
+    "sha256": "9fa28c1d41fad41374f70fb33c9c38919e5558ca56ee4fc6f027ec7e74e5bce1",
+    "rights": "Valve Corporation; CS2 game depot asset. Vector layout created for ScoreDeck."
+  }
+]
