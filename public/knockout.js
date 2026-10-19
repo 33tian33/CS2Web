@@ -1,4 +1,6 @@
 const knockoutPositions=new Map();
+let showKnockoutPrediction=true;
+function openKnockoutPrediction(stageId){publicStage=stageId;showKnockoutPrediction=true;render()}
 function knockoutBronze(st,plan){
   const defs=flowMatches({stages:[st]}),final=defs.at(-1);
   if(st.type!=='playoff'||st.teamCount<4)return null;
@@ -43,7 +45,7 @@ function knockoutCard(n,plan,matches,publicView,projections){
   const title=n.kind==='final'?'决赛':n.kind==='bronze'?'季军战':n.d.round;
   const tag=m&&!provisional?(publicView?'a':'button'):'article';
   const action=m&&!provisional?(publicView?`href="#/match/${m.id}"`:`type="button" onclick="editMatch(${m.id})"`):'';
-  const status=provisional?'暂定对阵':m?statusLabel(m.status):'待启用';
+  const status=provisional?'预测对阵':m?statusLabel(m.status):'待启用';
   return `<${tag} ${action} class="knockout-card knockout-${n.kind} ${m?.status==='live'?'is-live':''}" style="left:${n.x}px;top:${n.y}px;width:${n.width}px" aria-label="${esc(`${title}${m?' #'+m.id:''} · BO${m?.bo||n.d.bo} · ${status}`)}"><div class="knockout-card-head"><span>${n.kind==='match'?(m?'#'+m.id:title):title+(m?' · #'+m.id:'')}</span><span>BO${m?.bo||n.d.bo}</span></div>${['a','b'].map((side,i)=>{
     const src=n.d[side],t=team(m?.['team_'+side]??(provisional?projected['team_'+side]:src.kind==='team'?src.teamId:null));
     const label=t?t.name:knockoutSource(src,plan,matches),won=m?.status==='finished'&&scores[i]>scores[1-i];
@@ -65,9 +67,10 @@ function knockoutProgress(layout,matches){
     fraction:progress/Math.max(1,rounds.length-1),endX:rounds.at(-1)[0].x+nodes[0].width/2,
     round:layout.rounds[index],signature:`${index}:${finished}:${live?.d.key||''}`};
 }
-function knockoutGraph(st,plan,publicView){
-  const layout=knockoutLayout(st,plan),matches=new Map(state.matches.filter(m=>m.flow_key).map(m=>[m.flow_key,m]));
-  const projections=new Map((publicView?state.flow.projections?.find(p=>p.stageId===st.id)?.matches||[]:[]).map(m=>[m.key,m]));
+function knockoutGraph(st,plan,publicView,simulation=null){
+  const layout=knockoutLayout(st,plan),matches=new Map(state.matches.filter(m=>m.flow_key).map(m=>[m.flow_key,simulation?{...m,team_a:null,team_b:null,status:'scheduled',maps:[]}:m]));
+  const hasPrediction=publicView&&!simulation&&state.flow.projections?.some(p=>p.stageId===st.id);
+  const projections=new Map(((simulation||publicView&&showKnockoutPrediction)?(simulation||state.flow).projections?.find(p=>p.stageId===st.id)?.matches||[]:[]).map(m=>[m.key,m]));
   const provisional=[...projections.keys()].some(key=>{const m=matches.get(key);return (!m?.team_a||!m?.team_b)&&(!m||m.status==='scheduled')});
   const focus=knockoutProgress(layout,matches),bronze=knockoutBronze(st,plan),count=st.teamCount-1+(bronze?1:0);
   const paths=layout.nodes.flatMap(n=>[n.d.a,n.d.b].map(src=>{
@@ -75,7 +78,7 @@ function knockoutGraph(st,plan,publicView){
     const loss=src.kind==='loser',start=p.y+(loss?80:49),end=n.y+49,bend=n.x-(loss?10:20);
     return `<path class="${loss?'knockout-loss-path':'knockout-win-path'}" d="M${p.x+p.width} ${start} H${bend} V${end} H${n.x}"/>`;
   })).join('');
-  return `<div class="knockout" data-knockout="${st.id}" data-progress="${focus.signature}" data-focus-fraction="${focus.fraction}" data-focus-end="${focus.endX}" data-focus-y="${focus.y}"><div class="knockout-toolbar"><div class="knockout-summary"><strong>${st.teamCount} 强</strong><span>${count} 场${bronze?' · 含季军战':''}</span></div><div class="knockout-navigation"><span>${esc(focus.round)}</span><button type="button" onclick="centerKnockout(this.closest('[data-knockout]'),true)">回到当前赛程</button></div></div>${provisional?'<p class="knockout-projection-note">按当前积分暂定 · 同分沿用积分表顺序 · 小组赛结束后确定</p>':''}<div class="knockout-viewport" tabindex="0" role="region" aria-label="${esc(st.name)}对阵图，可拖动查看" onscroll="rememberKnockoutPosition(this)"><div class="knockout-surface" style="width:${layout.width}px"><div class="knockout-board"><div class="knockout-rounds" style="grid-template-columns:repeat(${layout.rounds.length},${layout.step}px)">${layout.rounds.map((round,i)=>`<div class="${round===focus.round?'is-current':''}"><span>${String(i+1).padStart(2,'0')}</span>${round==='决赛'&&bronze?'决赛 / 季军战':esc(round)}</div>`).join('')}</div><div class="knockout-canvas" style="height:${layout.height}px"><svg preserveAspectRatio="none" viewBox="0 0 ${layout.width} ${layout.height}" aria-hidden="true">${paths}</svg>${layout.nodes.map(n=>knockoutCard(n,plan,matches,publicView,projections)).join('')}</div></div></div></div></div>`;
+  return `<div class="knockout" data-knockout="${st.id}" data-progress="${focus.signature}" data-focus-fraction="${focus.fraction}" data-focus-end="${focus.endX}" data-focus-y="${focus.y}"><div class="knockout-toolbar"><div class="knockout-summary"><strong>${st.teamCount} 强</strong><span>${count} 场${bronze?' · 含季军战':''}</span></div>${hasPrediction?`<div class="tabs" aria-label="对阵视图"><button type="button" class="tab ${!showKnockoutPrediction?'active':''}" aria-pressed="${!showKnockoutPrediction}" onclick="showKnockoutPrediction=false;render()">正式对阵</button><button type="button" class="tab ${showKnockoutPrediction?'active':''}" aria-pressed="${showKnockoutPrediction}" onclick="showKnockoutPrediction=true;render()">淘汰赛预测</button><a class="outline" href="#/event/simulation">模拟赛果</a></div>`:''}<div class="knockout-navigation"><span>${esc(focus.round)}</span><button type="button" onclick="centerKnockout(this.closest('[data-knockout]'),true)">回到当前赛程</button></div></div>${provisional?'<p class="knockout-projection-note">按当前排名预测 · 完全同分沿用积分表顺序 · 非最终晋级结果</p>':''}<div class="knockout-viewport" tabindex="0" role="region" aria-label="${esc(st.name)}对阵图，可拖动查看" onscroll="rememberKnockoutPosition(this)"><div class="knockout-surface" style="width:${layout.width}px"><div class="knockout-board"><div class="knockout-rounds" style="grid-template-columns:repeat(${layout.rounds.length},${layout.step}px)">${layout.rounds.map((round,i)=>`<div class="${round===focus.round?'is-current':''}"><span>${String(i+1).padStart(2,'0')}</span>${round==='决赛'&&bronze?'决赛 / 季军战':esc(round)}</div>`).join('')}</div><div class="knockout-canvas" style="height:${layout.height}px"><svg preserveAspectRatio="none" viewBox="0 0 ${layout.width} ${layout.height}" aria-hidden="true">${paths}</svg>${layout.nodes.map(n=>knockoutCard(n,plan,matches,publicView,projections)).join('')}</div></div></div></div></div>`;
 }
 function centerKnockout(root,smooth=false){
   const el=root.querySelector('.knockout-viewport');

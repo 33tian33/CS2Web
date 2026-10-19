@@ -99,7 +99,8 @@ def match_outcomes(bo, status, maps):
 
 @lru_cache(maxsize=128)
 def scenarios(ids, matches, points, order):
-    choices = [match_outcomes(bo, status, maps) for _, _, bo, status, maps in matches]
+    choices = [(result,) if result is not None else match_outcomes(bo, status, maps)
+               for _, _, bo, status, maps, result in matches]
     results = []
     for outcomes in product(*choices):
         rows = {tid: dict(teamId=tid, pts=0, map=0, rdMin=0, rdMax=0, h2h=0) for tid in ids}
@@ -127,9 +128,13 @@ def scenarios(ids, matches, points, order):
     return results
 
 
-def group_scenarios(ids, matches, cfg):
+def group_scenarios(ids, matches, cfg, results=None):
+    results = results or {}
+    def simulated(m):
+        result = results.get(m.get('id'))
+        return (result['scoreA'],result['scoreB'],result['roundDiff'],result['roundDiff']) if result else None
     signature = tuple((m['team_a'], m['team_b'], m['bo'], m['status'],
-                       tuple((v['scoreA'], v['scoreB']) for v in m['maps'])) for m in matches)
+                       tuple((v['scoreA'], v['scoreB']) for v in m['maps']),simulated(m)) for m in matches)
     return scenarios(tuple(ids), signature, tuple(cfg[k] for k in ('winPoints', 'drawPoints', 'lossPoints')),
                      tuple(cfg['tieBreak'].split(',')))
 

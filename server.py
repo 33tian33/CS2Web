@@ -296,6 +296,18 @@ class Handler(SimpleHTTPRequestHandler):
             length=int(self.headers.get('Content-Length',0))
             if length>8000000: return self.json({'error':'请求内容过大'},413)
             body=json.loads(self.rfile.read(length))
+            if self.path=='/api/simulate':
+                if not isinstance(body,dict): raise ValueError('模拟赛果格式无效')
+                with connect() as con:
+                    con.execute('BEGIN')
+                    plan=json.loads(con.execute('SELECT active FROM flow WHERE id=1').fetchone()[0])
+                    cfg=json.loads(con.execute('SELECT value FROM settings WHERE id=1').fetchone()[0])
+                    names={r['id']:r['name'] for r in con.execute('SELECT id,name FROM teams')}
+                    matches=tournament.load_matches(con)
+                    if body.get('revision')!=tournament.simulation_revision(plan,matches,cfg,names):
+                        raise ValueError('真实赛果或赛制已更新，请同步赛果后重新模拟')
+                    result=tournament.simulate(plan,matches,cfg,names,body.get('results'))
+                return self.json(result)
             if self.path=='/api/login':
                 ip = self.headers.get('X-Real-IP', self.client_address[0])
                 attempts = [x for x in ATTEMPTS.get(ip, []) if x > time.time() - 300]

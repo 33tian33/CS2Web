@@ -1,5 +1,6 @@
 """Stage templates, advancement and BP rules for the local tournament."""
 import json
+import hashlib
 import worldcup
 import qualification
 from itertools import combinations
@@ -159,21 +160,23 @@ def load_matches(con):
 def score(m):
     return (sum(x['scoreA']>x['scoreB'] for x in m['maps']),sum(x['scoreB']>x['scoreA'] for x in m['maps']))
 
-def table(team_ids, matches, cfg):
+def table(team_ids, matches, cfg, results=None):
+    results = results or {}
+    match_score = lambda m: (results[m['id']]['scoreA'], results[m['id']]['scoreB']) if m['id'] in results else score(m)
     rows={i:dict(teamId=i,played=0,w=0,d=0,l=0,mw=0,ml=0,rd=0,pts=0,h2h=0) for i in team_ids if i is not None}
     for m in matches:
-        if m['status']!='finished': continue
-        a,b=rows[m['team_a']],rows[m['team_b']];x,y=score(m)
-        rd=sum(v['scoreA']-v['scoreB'] for v in m['maps'])
+        if m['status']!='finished' and m['id'] not in results: continue
+        a,b=rows[m['team_a']],rows[m['team_b']];x,y=match_score(m)
+        rd=results[m['id']]['roundDiff'] if m['id'] in results else sum(v['scoreA']-v['scoreB'] for v in m['maps'])
         for row,mine,other,diff in [(a,x,y,rd),(b,y,x,-rd)]:
             row['played']+=1;row['mw']+=mine;row['ml']+=other;row['rd']+=diff
             outcome='w' if mine>other else 'l' if mine<other else 'd'
             row[outcome]+=1;row['pts']+=cfg[{'w':'winPoints','l':'lossPoints','d':'drawPoints'}[outcome]]
     for m in matches:
-        if m['status']!='finished': continue
+        if m['status']!='finished' and m['id'] not in results: continue
         a,b=rows[m['team_a']],rows[m['team_b']]
         if a['pts']!=b['pts']: continue
-        x,y=score(m)
+        x,y=match_score(m)
         for row,mine,other in [(a,x,y),(b,y,x)]: row['h2h']+=cfg['winPoints' if mine>other else 'lossPoints' if mine<other else 'drawPoints']
     def key(r): return (r['pts'], *[r['mw']-r['ml'] if k=='map' else r['rd'] if k=='round' else r['h2h'] for k in cfg['tieBreak'].split(',')])
     ordered=sorted(rows.values(),key=lambda r:tuple(-v for v in key(r))+(r['teamId'],))
@@ -199,7 +202,7 @@ def comparison_table(st, comparator, tables, team_names):
     rows.sort(key=lambda r:(-r['pts'],-r['mapDiff'],-r['rd'],team_names[r['teamId']],r['teamId']))
     return dict(rows=rows,complete=complete and len(rows)==len(comparator['inputs']),unresolved=unresolved)
 
-def resolve(plan, matches, cfg, team_names, preview=False):
+def resolve(plan, matches, cfg, team_names, preview=False, results=None):
     bykey={m['flow_key']:m for m in matches if m['flow_key']}
     resolved, tables, comparisons={},{},{}
     def source(src):
@@ -236,7 +239,7 @@ def resolve(plan, matches, cfg, team_names, preview=False):
                 ms=[bykey[d['key']] for d in groupdefs if d['key'] in bykey]
                 if preview: ms=[m for m in ms if (m['team_a'],m['team_b'])==resolved[m['flow_key']]]
                 ids=[source(s) for s in st['slots'][g*size:(g+1)*size]]
-                tables[(st['id'],g)]=dict(rows=table(ids,ms,cfg),complete=bool(ms) and len(ms)==len(groupdefs) and all(m['status']=='finished' for m in ms))
+                tables[(st['id'],g)]=dict(rows=table(ids,ms,cfg,results),complete=bool(ms) and len(ms)==len(groupdefs) and all(m['status']=='finished' or m['id'] in (results or {}) for m in ms))
             for c in st.get('comparators',[]):
                 comparisons[(st['id'],c['id'])]=comparison_table(st,c,tables,team_names)
                 comparison=comparisons[(st['id'],c['id'])]
@@ -293,10 +296,10 @@ def state(con, matches, cfg):
     serialize=lambda values:[dict(stageId=s,comparatorId=c,**value) for (s,c),value in values.items()]
     projections=[p for st in active['stages'] if st.get('bracket')=='worldcup2026'
                  if (p:=worldcup.projection(st,tables,comparisons)) is not None]
-    return dict(draft=draft,active=active,tables=[dict(stageId=s,group=g,**value) for (s,g),value in tables.items()],comparisons=serialize(comparisons),draftComparisons=serialize(draft_comparisons),projections=projections)
+    return dict(simulationRevision=simulation_revision(active,matches,cfg,names),draft=draft,active=active,tables=[dict(stageId=s,group=g,**value) for (s,g),value in tables.items()],comparisons=serialize(comparisons),draftComparisons=serialize(draft_comparisons),projections=projections)
 
 
-def qualify(plan, matches, cfg, names, pairs, tables, comparisons):
+def qualify(plan, matches, cfg, names, pairs, tables, comparisons, results=None):
     bykey={m['flow_key']:m for m in matches if m['flow_key']}
     defs=matches_of(plan)
     for st in plan['stages']:
@@ -314,5 +317,52 @@ def qualify(plan, matches, cfg, names, pairs, tables, comparisons):
                     ms.append(dict(m,bo=m.get('bo',d['bo'])))
                 else:
                     ms.append(dict(team_a=a,team_b=b,bo=d['bo'],status='scheduled',maps=[]))
-            possibilities[g]=qualification.group_scenarios(ids,ms,cfg)
+            possibilities[g]=qualification.group_scenarios(ids,ms,cfg,results)
         qualification.annotate(st,tables,comparisons,possibilities,names,plan)
+
+
+def simulation_revision(plan, matches, cfg, names):
+    ranking_matches = [dict(id=m['id'],flow_key=m['flow_key'],team_a=m['team_a'],team_b=m['team_b'],
+                            bo=m['bo'],finished=m['status']=='finished',maps=m['maps'])
+                       for m in sorted(matches,key=lambda m:m['id']) if m['stage']=='group']
+    payload = json.dumps([plan,ranking_matches,cfg,names],sort_keys=True,ensure_ascii=False)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def simulate(plan, matches, cfg, names, entries):
+    if not isinstance(entries, list):
+        raise ValueError('模拟赛果格式无效')
+    definitions = {d['key'] for st in plan['stages'] if st['type']=='group'
+                   for d in matches_of({'stages':[st]})}
+    eligible = {m['id']:m for m in matches if m['flow_key'] in definitions
+                and (m['status']=='finished' or not m['maps']) and m['team_a'] and m['team_b']}
+    results = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or any(type(entry.get(k)) is not int for k in ('id','scoreA','scoreB','roundDiff')):
+            raise ValueError('比分和净胜回合须为整数')
+        mid = entry['id']
+        if mid not in eligible or mid in results:
+            raise ValueError('该比赛不可模拟，请刷新页面')
+        m = eligible[mid]
+        if m['status']=='finished' and entry.get('unlocked') is not True:
+            raise ValueError('已完成比赛需先手动解锁模拟')
+        a,b,rd = entry['scoreA'],entry['scoreB'],entry['roundDiff']
+        valid = a>=0 and b>=0 and (a+b==2 if m['bo']==2 else max(a,b)==m['bo']//2+1 and min(a,b)<max(a,b))
+        if not valid:
+            raise ValueError('大比分与比赛制式不符')
+        if not a-13*b <= rd <= 13*a-b:
+            raise ValueError('净胜回合与大比分不符')
+        results[mid] = entry
+    group_plan = {'stages':[s for s in plan['stages'] if s['type']=='group']}
+    pairs,tables,comparisons = resolve(group_plan,matches,cfg,names,results=results)
+    qualify(plan,matches,cfg,names,pairs,tables,comparisons,results)
+    projections = [p for st in plan['stages'] if st.get('bracket')=='worldcup2026'
+                   if (p:=worldcup.projection(st,tables,comparisons)) is not None]
+    for st in plan['stages']:
+        if st.get('bracket')!='worldcup2026' or not any(p['stageId']==st['id'] for p in projections): continue
+        comparison=comparisons[(st['groupStageId'],st['comparatorId'])]
+        opponents={tid:winner for winner,tid in worldcup.allocation(comparison['rows']).items()}
+        for row in comparison['rows']: row['worldcupOpponent']=opponents.get(row['teamId'])
+    return dict(tables=[dict(stageId=s,group=g,**v) for (s,g),v in tables.items()],
+                comparisons=[dict(stageId=s,comparatorId=c,**v) for (s,c),v in comparisons.items()],
+                projections=projections)

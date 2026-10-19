@@ -150,3 +150,6 @@
 .group-standings .confirmed-qualified,.comparator-table .confirmed-qualified{background:#234c37}
 .group-standings .confirmed-third,.comparator-table .confirmed-third{background:#514526}
 .group-standings .confirmed-eliminated,.comparator-table .confirmed-eliminated{background:#512d34}
+
+.schedule-filter{display:flex;align-items:center;gap:8px;font-size:13px;white-space:nowrap}
+.schedule-filter input{width:16px;height:16px;accent-color:var(--accent)}

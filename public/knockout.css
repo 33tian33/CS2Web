@@ -26,3 +26,6 @@
 .knockout-card.is-live{border-color:#c9fb65}.knockout-card.is-live .knockout-card-foot>span:first-child{color:var(--accent)}
 @media(max-width:650px){.knockout-toolbar{padding:12px;gap:10px;flex-wrap:wrap}.knockout-summary strong{font-size:19px}.knockout-summary{gap:8px}.knockout-navigation{gap:8px}.knockout-navigation button{min-height:38px}.knockout-viewport{max-height:65vh}.knockout-rounds{backdrop-filter:none}}
 @media(prefers-reduced-motion:reduce){.knockout-card{transition:none}}
+
+.knockout-projection-note{margin:0;padding:10px 16px;color:var(--muted);font-size:12px}
+.knockout-seed{color:var(--accent);font-size:10px;white-space:nowrap}

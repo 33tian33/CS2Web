@@ -1,0 +1,28 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const elements=new Map();
+const $=id=>{if(!elements.has(id))elements.set(id,{});return elements.get(id)};
+let requests=[],invalid=false;
+const location={hash:'#/event/simulation'};
+const context=vm.createContext({location,state:{flow:{simulationRevision:'baseline',active:{stages:[{id:'groups',type:'group',advance:2}]}}},document:{querySelectorAll:()=>invalid?[{value:'',validity:{valid:false}}]:[]},$,esc:s=>s,restoreKnockoutPositions(){},api:(path,body)=>new Promise((resolve,reject)=>requests.push({path,body,resolve,reject}))});
+vm.runInContext(fs.readFileSync('public/simulation.js','utf8'),context);
+const run=code=>vm.runInContext(code,context);
+run('simulationTable=g=>String(g.points);simulationOutcomes=data=>data.version');
+const result=(version,points)=>({version,tables:[{stageId:'groups',group:0,points},{stageId:'groups',group:1,points:points+1}]});
+(async()=>{
+  const first=run('queueSimulation()'),second=run('queueSimulation()');
+  assert.equal(requests.length,2);assert.equal(requests[0].body.revision,'baseline');
+  requests[1].resolve(result('latest',7));await second;
+  requests[0].resolve(result('old',4));await first;
+  assert.equal($('#simulation-table-groups-0').innerHTML,'7');
+  assert.equal($('#simulation-table-groups-1').innerHTML,'8');
+  assert.equal($('#simulation-outcomes').innerHTML,'latest');
+  const pending=run('queueSimulation()');invalid=true;await run('queueSimulation()');
+  requests[2].resolve(result('invalidated',99));await pending;
+  assert.equal($('#simulation-outcomes').innerHTML,'latest');
+  invalid=false;const leaving=run('queueSimulation()');location.hash='#/event';requests[3].resolve(result('left',99));await leaving;
+  assert.equal(run('simulationResult.version'),'latest');
+  location.hash='#/event/simulation';const failed=run('queueSimulation()');requests[4].reject(Error('真实赛果已更新'));await failed;
+  assert.match($('#simulation-status').innerHTML,/同步赛果并重置模拟/);
+  assert.equal($('#simulation-outcomes').innerHTML,'latest');
+  console.log('Simulation updates: immediate requests, all tables, latest response, invalid input, navigation and stale-data errors passed');
+})().catch(e=>{console.error(e);process.exitCode=1});
