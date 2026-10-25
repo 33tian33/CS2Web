@@ -17,7 +17,9 @@ function toggleSimulationLock(id){
   queueSimulation();
 }
 function simulationTable(g,advance){return `<div class="table-wrap group-standings"><table><thead><tr><th>#</th><th>队伍</th><th>胜/平/负</th><th>净胜图</th><th>净胜小局</th><th>积分</th></tr></thead><tbody>${g.rows.map((r,i)=>`<tr class="rank-${i<advance?'green':i===advance?'yellow':'red'} confirmed-${r.qualification||'pending'}"><td>${i+1}</td><td>${teamIdentity(team(r.teamId))}</td><td>${r.w}/${r.d}/${r.l}</td><td>${r.mw-r.ml}</td><td>${r.rd}</td><td class="points">${r.pts}</td></tr>`).join('')}</tbody></table></div>`}
+let simulationConfirmed=false;
 async function enterSimulation(){
+  simulationConfirmed=false;
   const request=++simulationEntryRequest;
   simulationRequest++;
   shell('<div class="loading" role="status">正在同步最新赛果…</div>');
@@ -31,7 +33,12 @@ async function enterSimulation(){
     shell(`<div class="empty">同步赛果失败：${esc(error.message)}<p><button class="outline" onclick="enterSimulation()">重新同步</button></p></div>`);
   }
 }
+function confirmFinishedSimulation(){simulationConfirmed=true;render()}
 function simulationPage(){
+  if(allGroupMatchesFinished()&&!simulationConfirmed){
+    shell('<section class="panel simulation-confirmation"><p>小组赛的结局已经编织完毕，32强的对决已经产生，过时的预言无法改变已有的命运……</p><button type="button" class="primary" onclick="confirmFinishedSimulation()">是的，我还要预言我的Team If</button></section>');
+    return;
+  }
   const plan=state.flow.active,stages=plan.stages.filter(s=>s.type==='group');
   const data=simulationResult||state.flow;
   shell(`<div class="breadcrumb"><a href="#/event">赛事详情</a><span>/</span><span>模拟赛果</span></div><div class="page-heading"><div><h1>模拟赛果</h1><p>仅影响本页预测；净胜小局按左侧队伍计算，负数表示净负。完全同分沿用积分表顺序。</p></div><button class="outline" onclick="resetSimulation()">重置模拟</button></div><div class="simulation-nav"><div class="tabs"><button class="tab" onclick="document.querySelector('.simulation-groups').scrollIntoView()">小组赛果</button><button class="tab" onclick="document.querySelector('#simulation-outcomes').scrollIntoView()">第三名排名</button><button class="tab" onclick="document.querySelector('#simulation-bracket').scrollIntoView()">淘汰赛预测</button></div><span id="simulation-status" role="status" aria-live="polite">${Object.keys(simulatedResults).length} 场已模拟</span></div><div class="simulation-groups">${stages.map(st=>data.tables.filter(g=>g.stageId===st.id).map(g=>{

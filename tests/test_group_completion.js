@@ -1,0 +1,41 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+let html='',renders=0;
+const stages=[{id:'groups',type:'group',name:'小组赛',bo:2},{id:'knockout',type:'playoff',name:'32强单淘汰',teamCount:32,groupStageId:'groups',bo:3}];
+const context=vm.createContext({state:{matches:[],flow:{active:{stages},tables:[],projections:[{stageId:'knockout',matches:[]}],comparisons:[]}},location:{hash:'#/event/simulation'},shell:s=>html=s,render:()=>renders++,esc:s=>s,api:async()=>context.state});
+for(const file of ['planner.js','knockout.js','simulation.js'])vm.runInContext(fs.readFileSync('public/'+file,'utf8'),context);
+const run=s=>vm.runInContext(s,context);
+run("publicFlowStages=plan=>plan.stages;publicComparators=()=>'';stageGraph=()=>'<div>正式淘汰赛</div>'");
+assert.equal(run('allGroupMatchesFinished()'),false);
+context.state.matches=[{stage:'group',status:'finished'},{stage:'group',status:'live'},{stage:'playoff',status:'scheduled'}];
+assert.equal(run('allGroupMatchesFinished()'),false);
+assert.match(run('flowPublic()'),/淘汰赛预测/);
+context.state.matches[1].status='finished';
+assert.equal(run('allGroupMatchesFinished()'),true);
+assert.match(run('flowPublic()'),/正式淘汰赛/);
+assert.equal(run('publicStage'),'knockout');
+assert.equal(run('showKnockoutPrediction'),false);
+run("publicStage='groups'");
+const group=run('flowPublic()');
+assert.match(group,/模拟赛果/);
+assert.doesNotMatch(group,/淘汰赛预测/);
+assert.equal(run('publicStage'),'groups');
+// Polling and rendering again must preserve a deliberate return to the group tab.
+run('flowPublic()');assert.equal(run('publicStage'),'groups');
+run('simulationPage()');
+assert.match(html,/小组赛的结局已经编织完毕，32强的对决已经产生，过时的预言无法改变已有的命运……/);
+assert.equal((html.match(/<button /g)||[]).length,1);
+assert.match(html,/是的，我还要预言我的Team If/);
+run('confirmFinishedSimulation()');assert.equal(renders,1);
+run("simulationOutcomes=()=>'';simulationPage()");assert.match(html,/simulation-groups/);
+// The real bracket must ignore stale prediction selection after completion.
+run("knockoutLayout=()=>({nodes:[],positions:new Map(),rounds:[],width:100,height:100,step:100});knockoutProgress=()=>({signature:'x',fraction:0,endX:0,y:0,round:'32强'});knockoutBronze=()=>null;showKnockoutPrediction=true");
+const bracket=run('knockoutGraph(state.flow.active.stages[1],state.flow.active,true)');
+assert.doesNotMatch(bracket,/模拟赛果|淘汰赛预测|非最终晋级结果/);
+(async()=>{
+  await run('enterSimulation()');run('simulationPage()');assert.match(html,/过时的预言/);
+  context.state.matches[1].status='scheduled';run('simulationPage()');assert.match(html,/simulation-groups/);
+  run('flowPublic()');context.state.matches[1].status='finished';run('flowPublic()');assert.equal(run('publicStage'),'knockout');
+  console.log('Group completion: automatic transition, manual tabs, official bracket, confirmation and re-entry passed');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -178,9 +178,29 @@ def validate_match(m,con):
     if m['bo'] not in [2,3,5]: raise ValueError('仅支持 BO2、BO3、BO5')
     if m.get('stage') not in ['group','playoff']: raise ValueError('赛事阶段无效')
     if m['stage']=='playoff' and m['bo']==2: raise ValueError('淘汰赛请选择 BO3 或 BO5')
+    m['forfeit_winner']=m.get('forfeit_winner','')
+    if m['forfeit_winner'] not in ['', 'A', 'B']: raise ValueError('弃权赛果无效')
+    if m['forfeit_winner']:
+        count=2 if m['bo']==2 else m['bo']//2+1
+        existing=m.get('maps',[])
+        picks=[b['map'] for b in m.get('bp',[]) if b['action'] in ['Pick','Decider'] and b['map']]
+        m['maps']=[dict(name=existing[i]['name'] if i<len(existing) else picks[i] if i<len(picks) else f'地图 {i+1}',
+                        scoreA=13 if m['forfeit_winner']=='A' else 0,
+                        scoreB=13 if m['forfeit_winner']=='B' else 0) for i in range(count)]
+        m['status']='finished'
+        m['stats']=[]
+        m['mvp_player_id']=None
     if m.get('status') not in ['scheduled','live','finished']: raise ValueError('比赛状态无效')
     m['round_name']=short(m.get('round_name'))
     m['time']=optional_date(m.get('time'), precise=True)
+    replay_url=m.get('replay_url','')
+    if not isinstance(replay_url,str): raise ValueError('请填写有效的直播回放链接')
+    replay_url=replay_url.strip()
+    if replay_url:
+        parsed=urlparse(replay_url)
+        if parsed.scheme not in ['http','https'] or not parsed.hostname or re.search(r'[\s\\\x00-\x1f\x7f]',replay_url):
+            raise ValueError('直播回放链接必须是完整的 HTTP 或 HTTPS 地址')
+    m['replay_url']=replay_url
     ids={r[0] for r in con.execute('SELECT id FROM teams')}
     for k in ['team_a','team_b']:
         if m.get(k) is not None and m[k] not in ids: raise ValueError('队伍不存在')
@@ -378,11 +398,11 @@ class Handler(SimpleHTTPRequestHandler):
                         body['bp']=edit['steps'] if edit['config'] else []
                     m=validate_match(body,con)
                     finished_at = (old['finished_at'] if old and old['status']=='finished' else datetime.now(BEIJING_TZ).isoformat(timespec='seconds')) if m['status']=='finished' else ''
-                    vals=tuple(m.get(k) for k in ['team_a','team_b','stage','round_name','bo','status','time'])+tuple(json.dumps(m.get(k,[])) for k in ['maps','bp','stats'])+(json.dumps(m['bp_config']),m.get('mvp_player_id'),finished_at)
+                    vals=tuple(m.get(k) for k in ['team_a','team_b','stage','round_name','bo','status','time'])+tuple(json.dumps(m.get(k,[])) for k in ['maps','bp','stats'])+(json.dumps(m['bp_config']),m.get('mvp_player_id'),finished_at,m['replay_url'],m['forfeit_winner'])
                     if m.get('id'):
-                        cur=con.execute('UPDATE matches SET team_a=?,team_b=?,stage=?,round_name=?,bo=?,status=?,time=?,maps=?,bp=?,stats=?,bp_config=?,mvp_player_id=?,finished_at=? WHERE id=?',vals+(m['id'],))
+                        cur=con.execute('UPDATE matches SET team_a=?,team_b=?,stage=?,round_name=?,bo=?,status=?,time=?,maps=?,bp=?,stats=?,bp_config=?,mvp_player_id=?,finished_at=?,replay_url=?,forfeit_winner=? WHERE id=?',vals+(m['id'],))
                         if cur.rowcount!=1: raise ValueError('比赛不存在')
-                    else: con.execute('INSERT INTO matches(team_a,team_b,stage,round_name,bo,status,time,maps,bp,stats,bp_config,mvp_player_id,finished_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',vals)
+                    else: con.execute('INSERT INTO matches(team_a,team_b,stage,round_name,bo,status,time,maps,bp,stats,bp_config,mvp_player_id,finished_at,replay_url,forfeit_winner) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',vals)
                 elif self.path=='/api/team':
                     t=body; cfg=json.loads(con.execute('SELECT value FROM settings WHERE id=1').fetchone()[0])
                     t['name']=short(t.get('name'))

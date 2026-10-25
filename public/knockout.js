@@ -50,7 +50,7 @@ function knockoutCard(n,plan,matches,publicView,projections){
     const src=n.d[side],t=team(m?.['team_'+side]??(provisional?projected['team_'+side]:src.kind==='team'?src.teamId:null));
     const label=t?t.name:knockoutSource(src,plan,matches),won=m?.status==='finished'&&scores[i]>scores[1-i];
     const seed=provisional?projected['seed_'+side]:'';
-    return `<div class="knockout-team ${won?'is-winner':''}" title="${esc(label)}"><span class="knockout-identity">${t?teamIdentity(t):`<span class="knockout-pending">${esc(label)}</span>`}</span>${seed?`<small class="knockout-seed">${esc(seed)}</small>`:''}<b>${m&&m.status!=='scheduled'?scores[i]:'—'}</b></div>`;
+    return `<div class="knockout-team ${won?'is-winner':''}" title="${esc(label)}"><span class="knockout-identity">${t?teamIdentity(t):`<span class="knockout-pending">${esc(label)}</span>`}</span>${seed?`<small class="knockout-seed">${esc(seed)}</small>`:''}<b>${m&&m.status!=='scheduled'?displayScore(m)[i]:'—'}</b></div>`;
   }).join('')}<div class="knockout-card-foot"><span>${esc(status)}</span><span>${m?.time?esc(date(m.time)):'时间待定'}</span></div></${tag}>`;
 }
 function knockoutProgress(layout,matches){
@@ -69,8 +69,8 @@ function knockoutProgress(layout,matches){
 }
 function knockoutGraph(st,plan,publicView,simulation=null){
   const layout=knockoutLayout(st,plan),matches=new Map(state.matches.filter(m=>m.flow_key).map(m=>[m.flow_key,simulation?{...m,team_a:null,team_b:null,status:'scheduled',maps:[]}:m]));
-  const hasPrediction=publicView&&!simulation&&state.flow.projections?.some(p=>p.stageId===st.id);
-  const projections=new Map(((simulation||publicView&&showKnockoutPrediction)?(simulation||state.flow).projections?.find(p=>p.stageId===st.id)?.matches||[]:[]).map(m=>[m.key,m]));
+  const hasPrediction=publicView&&!simulation&&!allGroupMatchesFinished()&&state.flow.projections?.some(p=>p.stageId===st.id);
+  const projections=new Map(((simulation||hasPrediction&&showKnockoutPrediction)?(simulation||state.flow).projections?.find(p=>p.stageId===st.id)?.matches||[]:[]).map(m=>[m.key,m]));
   const provisional=[...projections.keys()].some(key=>{const m=matches.get(key);return (!m?.team_a||!m?.team_b)&&(!m||m.status==='scheduled')});
   const focus=knockoutProgress(layout,matches),bronze=knockoutBronze(st,plan),count=st.teamCount-1+(bronze?1:0);
   const paths=layout.nodes.flatMap(n=>[n.d.a,n.d.b].map(src=>{

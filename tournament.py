@@ -24,6 +24,10 @@ def migrate(con):
         con.execute('ALTER TABLE matches ADD COLUMN mvp_player_id INTEGER REFERENCES players(id) ON DELETE SET NULL')
     if 'finished_at' not in columns:
         con.execute("ALTER TABLE matches ADD COLUMN finished_at TEXT NOT NULL DEFAULT ''")
+    if 'replay_url' not in columns:
+        con.execute("ALTER TABLE matches ADD COLUMN replay_url TEXT NOT NULL DEFAULT ''")
+    if 'forfeit_winner' not in columns:
+        con.execute("ALTER TABLE matches ADD COLUMN forfeit_winner TEXT NOT NULL DEFAULT '' CHECK(forfeit_winner IN ('','A','B'))")
 
 def template(m, first='A'):
     ids = {'A': m['team_a'], 'B': m['team_b']}
