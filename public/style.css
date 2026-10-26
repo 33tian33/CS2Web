@@ -153,3 +153,8 @@
 
 .schedule-filter{display:flex;align-items:center;gap:8px;font-size:13px;white-space:nowrap}
 .schedule-filter input{width:16px;height:16px;accent-color:var(--accent)}
+
+.team-card.is-eliminated{filter:grayscale(1);background:#151719;border-color:#292d30;box-shadow:none}
+.team-card.is-eliminated:hover{border-color:#62696d;transform:none;box-shadow:none}
+.team-card.is-eliminated>.team-identity,.team-card.is-eliminated .player-info strong{color:#aeb5b8}
+.team-card.is-eliminated .badge,.team-card.is-eliminated .avatar{opacity:.65}
