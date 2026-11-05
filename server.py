@@ -57,6 +57,8 @@ def initialize():
             WHEN 'S青铜' THEN '普通S' WHEN 'S白银' THEN '黄金S'
             WHEN 'S黄金' THEN '钻石S' WHEN 'S钻石' THEN '魔王S' END
             WHERE perfect_rank IN ('S青铜','S白银','S黄金','S钻石')""")
+        if 'stats_format' not in {r['name'] for r in con.execute('PRAGMA table_info(matches)')}:
+            con.execute("ALTER TABLE matches ADD COLUMN stats_format TEXT")
         tournament.migrate(con)
         start_due_matches(con)
 
@@ -223,10 +225,13 @@ def validate_match(m,con):
     if m.get('mvp_player_id') is not None:
         integer(m['mvp_player_id'],1,2147483647)
         if m['mvp_player_id'] not in players: raise ValueError('MVP 必须属于本场参赛队伍')
+    m['stats_format']=m.get('stats_format') or ('old' if m.get('stats') else 'new')
+    if m['stats_format'] not in ['old','new']: raise ValueError('录入格式无效')
     seen=set()
     for s in m.get('stats',[]):
         integer(s.get('map'),0,len(maps)-1)
         if s.get('playerId') not in players: raise ValueError('选手不属于本场参赛队伍')
+        if m['stats_format']=='new' and (not isinstance(s.get('we'),(int,float)) or not 0<=s['we']<=200): raise ValueError('WE 超出范围')
         key=(s['map'],s['playerId'])
         if key in seen: raise ValueError('同一地图的选手数据重复')
         seen.add(key)
@@ -398,11 +403,11 @@ class Handler(SimpleHTTPRequestHandler):
                         body['bp']=edit['steps'] if edit['config'] else []
                     m=validate_match(body,con)
                     finished_at = (old['finished_at'] if old and old['status']=='finished' else datetime.now(BEIJING_TZ).isoformat(timespec='seconds')) if m['status']=='finished' else ''
-                    vals=tuple(m.get(k) for k in ['team_a','team_b','stage','round_name','bo','status','time'])+tuple(json.dumps(m.get(k,[])) for k in ['maps','bp','stats'])+(json.dumps(m['bp_config']),m.get('mvp_player_id'),finished_at,m['replay_url'],m['forfeit_winner'])
+                    vals=tuple(m.get(k) for k in ['team_a','team_b','stage','round_name','bo','status','time'])+tuple(json.dumps(m.get(k,[])) for k in ['maps','bp','stats'])+(json.dumps(m['bp_config']),m.get('mvp_player_id'),finished_at,m['replay_url'],m['forfeit_winner'],m['stats_format'])
                     if m.get('id'):
-                        cur=con.execute('UPDATE matches SET team_a=?,team_b=?,stage=?,round_name=?,bo=?,status=?,time=?,maps=?,bp=?,stats=?,bp_config=?,mvp_player_id=?,finished_at=?,replay_url=?,forfeit_winner=? WHERE id=?',vals+(m['id'],))
+                        cur=con.execute('UPDATE matches SET team_a=?,team_b=?,stage=?,round_name=?,bo=?,status=?,time=?,maps=?,bp=?,stats=?,bp_config=?,mvp_player_id=?,finished_at=?,replay_url=?,forfeit_winner=?,stats_format=? WHERE id=?',vals+(m['id'],))
                         if cur.rowcount!=1: raise ValueError('比赛不存在')
-                    else: con.execute('INSERT INTO matches(team_a,team_b,stage,round_name,bo,status,time,maps,bp,stats,bp_config,mvp_player_id,finished_at,replay_url,forfeit_winner) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',vals)
+                    else: con.execute('INSERT INTO matches(team_a,team_b,stage,round_name,bo,status,time,maps,bp,stats,bp_config,mvp_player_id,finished_at,replay_url,forfeit_winner,stats_format) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',vals)
                 elif self.path=='/api/team':
                     t=body; cfg=json.loads(con.execute('SELECT value FROM settings WHERE id=1').fetchone()[0])
                     t['name']=short(t.get('name'))
