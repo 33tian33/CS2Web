@@ -232,6 +232,7 @@ def validate_match(m,con):
         integer(s.get('map'),0,len(maps)-1)
         if s.get('playerId') not in players: raise ValueError('选手不属于本场参赛队伍')
         if m['stats_format']=='new' and (not isinstance(s.get('we'),(int,float)) or not 0<=s['we']<=200): raise ValueError('WE 超出范围')
+        if m['stats_format']=='new': s['we']=int(s['we']*10+0.5)/10
         key=(s['map'],s['playerId'])
         if key in seen: raise ValueError('同一地图的选手数据重复')
         seen.add(key)

@@ -46,7 +46,7 @@ function parseCopiedStats(text, format = 'old') {
       return [JSON.stringify(value), value];
     })).values()];
     if (!unique.length || Number(row[5]) > 10) throw Error(`${nickname}：K/D/A 或 Rating 格式不正确`);
-    records.push({nickname, candidates: unique, rating: Number(row[5]), ...(format === 'new' ? {we: Number(row[6])} : {})});
+    records.push({nickname, candidates: unique, rating: Number(row[5]), ...(format === 'new' ? {we: Math.round(Number(row[6]) * 10) / 10} : {})});
   }
   if (!records.length) throw Error('请先粘贴战绩');
   return records;
@@ -74,7 +74,7 @@ function previewStatsImport(button) {
     box.querySelector('.stats-import-preview').innerHTML = `<div class="table-wrap"><table><thead><tr><th>复制的 ID</th><th>本场选手</th><th>K / D / A</th><th>${statsFormat(draftMatch)==='new'?'Rating Pro':'Rating'}</th>${statsFormat(draftMatch)==='new'?'<th>WE</th>':''}</tr></thead><tbody>${records.map(record => {
       const matches = roster.filter(p => normalize(p.nickname) === normalize(record.nickname));
       const selected = matches.length === 1 ? matches[0].id : null;
-      return `<tr class="stats-import-row"><td>${esc(record.nickname)}</td><td><select class="import-player" aria-label="${esc(record.nickname)} 匹配选手"><option value="">选择本场选手</option>${roster.map(p => `<option value="${p.id}" ${p.id === selected ? 'selected' : ''}>${esc(team(p.team_id).tag)} · ${esc(p.nickname)}</option>`).join('')}</select></td><td><select class="import-kda" aria-label="${esc(record.nickname)} K/D/A">${record.candidates.map((s, i) => `<option value="${i}">${s.kills} / ${s.deaths} / ${s.assists}</option>`).join('')}</select>${record.candidates.length > 1 ? '<span class="import-ambiguity">多种拆分，请核对</span>' : ''}</td><td>${record.rating.toFixed(2)}</td>${record.we===undefined?'':`<td>${record.we.toFixed(4)}</td>`}</tr>`;
+      return `<tr class="stats-import-row"><td>${esc(record.nickname)}</td><td><select class="import-player" aria-label="${esc(record.nickname)} 匹配选手"><option value="">选择本场选手</option>${roster.map(p => `<option value="${p.id}" ${p.id === selected ? 'selected' : ''}>${esc(team(p.team_id).tag)} · ${esc(p.nickname)}</option>`).join('')}</select></td><td><select class="import-kda" aria-label="${esc(record.nickname)} K/D/A">${record.candidates.map((s, i) => `<option value="${i}">${s.kills} / ${s.deaths} / ${s.assists}</option>`).join('')}</select>${record.candidates.length > 1 ? '<span class="import-ambiguity">多种拆分，请核对</span>' : ''}</td><td>${record.rating.toFixed(2)}</td>${record.we===undefined?'':`<td>${record.we.toFixed(1)}</td>`}</tr>`;
     }).join('')}</tbody></table></div><button type="button" class="primary" onclick="applyStatsImport(this)">填入当前地图</button>`;
   } catch (error) {
     box.querySelector('.error').textContent = error.message;
